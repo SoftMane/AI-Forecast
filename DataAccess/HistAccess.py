@@ -79,7 +79,7 @@ class HistAccess():
                 for i in range(length):
                     out_array = []
                     x = x + 1
-                    for j in range(3):
+                    for j in range(4):
                         temp = []
                         # f.write(str(city_array[j][i].year) + " ")
                         # f.write(str(city_array[j][i].month) + " ")
@@ -105,7 +105,6 @@ class HistAccess():
                         temp.append(city_array[j][i].wind_speed)
                         temp.append(city_array[j][i].wind_dir)
                         out_array.append(temp)
-
                     pickle.dump(out_array, f_train, pickle.HIGHEST_PROTOCOL)
             f_train.close()
             t = x
@@ -114,7 +113,7 @@ class HistAccess():
                 for i in range(x, length):
                     out_array = []
                     t = t + 1
-                    for j in range(3):
+                    for j in range(4):
                         temp.append(city_array[j][i].year)
                         temp.append(city_array[j][i].month)
                         temp.append(city_array[j][i].day)
@@ -133,7 +132,7 @@ class HistAccess():
             with open("testing.pkl", 'wb') as f_test:
                 for i in range(t, len(city_array[0])):
                     out_array = []
-                    for j in range(3):
+                    for j in range(4):
                         temp.append(city_array[j][i].year)
                         temp.append(city_array[j][i].month)
                         temp.append(city_array[j][i].day)
