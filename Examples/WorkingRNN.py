@@ -12,7 +12,6 @@ import numpy as np
 import pickle
 import decimal
 
-print(tf.__version__)
 
 #tf.compat.v1.disable_eager_execution()
 data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess'
@@ -64,11 +63,11 @@ train_data, valid_data, test_data = load_data(data_path)
 
 class KerasBatchGenerator(object):
 
-    def __init__(self, data, num_steps, batch_size, vocabulary, skip_step=5):
+    def __init__(self, data, num_steps, batch_size, skip_step=1):
         self.data = data
         self.num_steps = num_steps
         self.batch_size = batch_size
-        self.vocabulary = vocabulary
+        #self.vocabulary = vocabulary
         # this will track the progress of the batches sequentially through the
         # data set - once the data reaches the end of the data set it will reset
         # back to zero
@@ -79,12 +78,14 @@ class KerasBatchGenerator(object):
 # add in counter and open file then close after reading in correct amount.
 # Check if way to load certain index with pickle stuff
     def generate(self):
-        x = np.zeros((self.batch_size, self.num_steps), dtype=object)
-        y = np.zeros((self.batch_size, self.num_steps), dtype=object)#, self.vocabulary))
-
+        current_spot = 0
         temp_y = []
         while True:
             with open(train_data, 'rb') as f:
+                x = np.zeros((self.batch_size, self.num_steps), dtype=float)
+                y = np.zeros((self.batch_size, self.num_steps), dtype=float)
+                for t in range(current_spot):
+                    temp = pickle.load(f)
                 for i in range(self.batch_size):
                     if self.current_idx + self.num_steps >= len(self.data):
                         # reset the index back to the start of the data set
@@ -93,7 +94,7 @@ class KerasBatchGenerator(object):
                         l = pickle.load(f)
                         l = np.array(l).astype('float64')
                         l = l.flatten(order='C')
-                        print(l)
+                        l = np.array(l)
 
                         #l = np.array(pickle.load(f), dtype=np.float)
 
@@ -106,45 +107,54 @@ class KerasBatchGenerator(object):
                     #x[i] = pickle.load(f)# self.data[self.current_idx:self.current_idx + self.num_steps]
                     temp_y = np.array(pickle.load(f), dtype=np.float)#self.data[self.current_idx + 1:self.current_idx + self.num_steps + 1]
                     temp_y = temp_y.flatten(order='C')
+                    temp_y = np.array(temp_y)
                     # convert all of temp_y into a one hot representation
                     y[i] = temp_y
                     #y[i, :, :] = to_categorical(temp_y, num_classes=self.vocabulary)
                     self.current_idx += self.skip_step
+                x = np.reshape(x, (1,24,44))
+                #print(x)
+                y = np.reshape(y, (1,24,44))
                 yield x, y
             f.close()
+            current_spot += 24
+            if current_spot > 5000:
+                current_spot = 0
 
 num_steps = 44
 batch_size = 24
-train_data_generator = KerasBatchGenerator(train_data, num_steps, batch_size, 8000,
+train_data_generator = KerasBatchGenerator(train_data, num_steps, batch_size,
                                            skip_step=1)
-valid_data_generator = KerasBatchGenerator(valid_data, num_steps, batch_size, 8000,
+valid_data_generator = KerasBatchGenerator(valid_data, num_steps, batch_size,
                                            skip_step=1)
 
 embedding_size = 500
-hidden_size = 500
+hidden_size = 44
 use_dropout=True
 model = Sequential()
-model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+
+#model.add(Embedding(8000, embedding_size, input_length=num_steps))
+model.add(LSTM(hidden_size, input_shape=(24,44), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
               recurrent_initializer=keras.initializers.VarianceScaling()))
-model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
-              recurrent_initializer=keras.initializers.VarianceScaling()))
-model.add(TimeDistributed(Dense(8000)))
+#model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+ #             recurrent_initializer=keras.initializers.VarianceScaling()))
+#model.add(TimeDistributed(Dense(8000)))
 if use_dropout:
     model.add(Dropout(0.2))
 model.add(Activation('softmax'))
 model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['categorical_accuracy'])
 
-print(model.summary())
+#print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
 num_epochs = 50
+#removed 8000// from batch_size*num_steps
 model.fit_generator(train_data_generator.generate(), 8000//(batch_size*num_steps), num_epochs, #8000 was len(train_Data)
                         validation_data=valid_data_generator.generate(),
                         validation_steps=8000//(batch_size*num_steps), callbacks=[checkpointer]) #8000 was len(valid_data)
 
 model = load_model(data_path + "/model-40.hdf5")
 dummy_iters = 40
-example_training_generator = KerasBatchGenerator(train_data, num_steps, 1, 8000,
+example_training_generator = KerasBatchGenerator(train_data, num_steps, batch_size,
                                                  skip_step=1)
 print("Training data:")
 for i in range(dummy_iters):
@@ -155,14 +165,15 @@ pred_print_out = "Predicted words: "
 for i in range(num_predict):
     data = next(example_training_generator.generate())
     prediction = model.predict(data[0])
-    predict_word = np.argmax(prediction[:, num_steps-1, :])
+    print(prediction)
+    #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
     # true_print_out += reversed_dictionary[train_data[num_steps + dummy_iters + i]] + " "
     # pred_print_out += reversed_dictionary[predict_word] + " "
-print(true_print_out)
-print(pred_print_out)
+#print(true_print_out)
+#print(pred_print_out)
 # test data set
 dummy_iters = 40
-example_test_generator = KerasBatchGenerator(test_data, num_steps, 1, 8000,
+example_test_generator = KerasBatchGenerator(train_data, num_steps, batch_size,
                                                  skip_step=1)
 print("Test data:")
 for i in range(dummy_iters):
@@ -173,7 +184,7 @@ pred_print_out = "Predicted words: "
 for i in range(num_predict):
     data = next(example_test_generator.generate())
     prediction = model.predict(data[0])
-    predict_word = np.argmax(prediction[:, num_steps - 1, :])
+    #predict_word = np.argmax(prediction[:, 24 - 1, :])
     # true_print_out += reversed_dictionary[test_data[num_steps + dummy_iters + i]] + " "
     # pred_print_out += reversed_dictionary[predict_word] + " "
 # print(true_print_out)
