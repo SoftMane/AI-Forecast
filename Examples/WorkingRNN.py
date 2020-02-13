@@ -165,7 +165,7 @@ pred_print_out = "Predicted words: "
 for i in range(num_predict):
     data = next(example_training_generator.generate())
     prediction = model.predict(data[0])
-    print(prediction)
+    print("Prediction: " + str(prediction))
     #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
     # true_print_out += reversed_dictionary[train_data[num_steps + dummy_iters + i]] + " "
     # pred_print_out += reversed_dictionary[predict_word] + " "
