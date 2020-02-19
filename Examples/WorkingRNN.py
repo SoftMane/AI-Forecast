@@ -4,7 +4,7 @@ import urllib.request
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Dense, Activation, Embedding, Dropout, TimeDistributed
+from tensorflow.keras.layers import Dense, Activation, Embedding, Dropout, TimeDistributed, Flatten, Reshape
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -83,7 +83,7 @@ class KerasBatchGenerator(object):
         while True:
             with open(train_data, 'rb') as f:
                 x = np.zeros((self.batch_size, self.num_steps), dtype=float)
-                y = np.zeros((self.batch_size, self.num_steps), dtype=float)
+                y = np.zeros((self.batch_size), dtype=float)
                 for t in range(current_spot):
                     temp = pickle.load(f)
                 for i in range(self.batch_size):
@@ -106,19 +106,19 @@ class KerasBatchGenerator(object):
                         #print(x[i])
                     #x[i] = pickle.load(f)# self.data[self.current_idx:self.current_idx + self.num_steps]
                     temp_y = np.array(pickle.load(f), dtype=np.float)#self.data[self.current_idx + 1:self.current_idx + self.num_steps + 1]
+                    y[i] = temp_y[3][4]
                     temp_y = temp_y.flatten(order='C')
                     temp_y = np.array(temp_y)
-                    # convert all of temp_y into a one hot representation
-                    y[i] = temp_y
+                    # # convert all of temp_y into a one hot representation
+                    #y[i] = temp_y
                     #y[i, :, :] = to_categorical(temp_y, num_classes=self.vocabulary)
                     self.current_idx += self.skip_step
-                x = np.reshape(x, (1,24,44))
-                #print(x)
-                y = np.reshape(y, (1,24,44))
+                x = np.reshape(x, (24,1, 44))
+                y = np.reshape(y, (24,1))
                 yield x, y
             f.close()
             current_spot += 24
-            if current_spot > 5000:
+            if current_spot > 5500:
                 current_spot = 0
 
 num_steps = 44
@@ -132,27 +132,33 @@ embedding_size = 500
 hidden_size = 44
 use_dropout=True
 model = Sequential()
-
 #model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(hidden_size, input_shape=(24,44), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+model.add(LSTM(hidden_size, input_shape=(1, 44), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
               recurrent_initializer=keras.initializers.VarianceScaling()))
-#model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
- #             recurrent_initializer=keras.initializers.VarianceScaling()))
+model.add(LSTM(hidden_size, input_shape=(1, 44), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+              recurrent_initializer=keras.initializers.VarianceScaling()))
 #model.add(TimeDistributed(Dense(8000)))
 if use_dropout:
     model.add(Dropout(0.2))
-model.add(Activation('softmax'))
-model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=['categorical_accuracy'])
+
+model.add(Flatten())
+#more dense layers seem to make prediction more accurate...
+model.add(Dense(1000))
+# model.add(Dense(100))
+# model.add(Dense(10))
+model.add(Dense(1,activation='relu'))
+#model.add(Activation('sigmoid')) #maybe change activation function to help get one value? idk. this is why prediction is always 1 right now(old)
+model.compile(loss='mean_absolute_percentage_error', optimizer=tf.keras.optimizers.Adam(), metrics=['mean_absolute_percentage_error'])
 
 #print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
-num_epochs = 50
+num_epochs = 1
 #removed 8000// from batch_size*num_steps
-model.fit_generator(train_data_generator.generate(), 8000//(batch_size*num_steps), num_epochs, #8000 was len(train_Data)
+model.fit_generator(train_data_generator.generate(), 5500, num_epochs, #8000 was len(train_Data), //(batch_size*num_steps)
                         validation_data=valid_data_generator.generate(),
-                        validation_steps=8000//(batch_size*num_steps), callbacks=[checkpointer]) #8000 was len(valid_data)
+                        validation_steps=1000, callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
 
-model = load_model(data_path + "/model-40.hdf5")
+model = load_model(data_path + "/model-01.hdf5")
 dummy_iters = 40
 example_training_generator = KerasBatchGenerator(train_data, num_steps, batch_size,
                                                  skip_step=1)
@@ -164,8 +170,12 @@ true_print_out = "Actual words: "
 pred_print_out = "Predicted words: "
 for i in range(num_predict):
     data = next(example_training_generator.generate())
-    prediction = model.predict(data[0])
-    print("Prediction: " + str(prediction))
+    test = np.reshape(data[0][i],(1,1,44))
+    prediction = model.predict(test)
+    test = np.reshape(data[0][i+1], (1,1,44))
+    print(test)
+    print(((test[0][0][37]*323.0)-273.15)*(9.0/5.0)+32.0) #converts data to f
+    print("Prediction: " + str(((prediction*323.0)-273.15)*(9.0/5.0)+32.0)+ "\nShape: " + str(prediction.shape))
     #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
     # true_print_out += reversed_dictionary[train_data[num_steps + dummy_iters + i]] + " "
     # pred_print_out += reversed_dictionary[predict_word] + " "

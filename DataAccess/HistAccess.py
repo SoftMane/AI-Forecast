@@ -21,14 +21,6 @@ class HistAccess():
         for x in range(num_cities):
             temp_array = []
             city_array.append(temp_array)
-        city1 = []
-        city2 = []
-        city3 = []
-        city4 = []
-        count_city1 = 0
-        count_city2 = 0
-        count_city3 = 0
-        count_city4 = 0
         with open('C:/Users/Rohg/PycharmProjects/AI-Forecast/Data.json') as f:
             # this next line loads the entire file into data as an array of json objects. can access individual things like 2d array
             # and has 666604 json objects
@@ -43,6 +35,8 @@ class HistAccess():
                 wd.day = temp_date.day
                 wd.hour = temp_date.hour
                 if wd.year >= start_year and wd.year <= end_year: #if year is within specified range
+                    #F: -20 = 244K
+                    #F: 120 = 322K
                     wd.temp = data[count]['main']['temp'] / 323  # divide by 50 Celsius (323K)
                     wd.temp_min = data[count]['main']['temp_min'] / 323
                     wd.temp_max = data[count]['main']['temp_max'] / 323
