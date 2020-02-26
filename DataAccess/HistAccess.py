@@ -87,7 +87,7 @@ class HistAccess():
                         # f.write(str(city_array[j][i].wind_speed) + " ")
                         # f.write(str(city_array[j][i].wind_dir) + '\n')
 
-                        temp.append(city_array[j][i].year)
+                        #temp.append(city_array[j][i].year)
                         temp.append(city_array[j][i].month)
                         temp.append(city_array[j][i].day)
                         temp.append(city_array[j][i].hour)
@@ -108,7 +108,8 @@ class HistAccess():
                     out_array = []
                     t = t + 1
                     for j in range(4):
-                        temp.append(city_array[j][i].year)
+                        temp = []
+                        #temp.append(city_array[j][i].year)
                         temp.append(city_array[j][i].month)
                         temp.append(city_array[j][i].day)
                         temp.append(city_array[j][i].hour)
@@ -127,7 +128,8 @@ class HistAccess():
                 for i in range(t, len(city_array[0])):
                     out_array = []
                     for j in range(4):
-                        temp.append(city_array[j][i].year)
+                        temp = []
+                        #temp.append(city_array[j][i].year)
                         temp.append(city_array[j][i].month)
                         temp.append(city_array[j][i].day)
                         temp.append(city_array[j][i].hour)
@@ -144,4 +146,4 @@ class HistAccess():
             f_test.close()
 
 test = HistAccess
-test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2019, 2019)
+test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2018, 2019)
