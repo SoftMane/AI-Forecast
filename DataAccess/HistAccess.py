@@ -146,4 +146,4 @@ class HistAccess():
             f_test.close()
 
 test = HistAccess
-test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2018, 2019)
+test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2017, 2019)

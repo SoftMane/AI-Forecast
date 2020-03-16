@@ -99,6 +99,39 @@ def countingPklSize(data_path):
 
 train_size, valid_size, test_size = countingPklSize(data_path)
 
+#For getting needed y (temperature) values for greater offsets, saw 48 hours instead of 1
+#Could probably be combined with above counting function to be more efficient
+#Needs the paths to each data file and the desired offset (in hours)
+def getYData(train_path,valid_path,test_path,offset):
+    train_Y = []
+    valid_Y = []
+    test_Y = []
+    with open(train_path) as train:
+        for x in range(offset):
+            pickle.load(train)
+        while True:
+            try:
+                train_Y.append(pickle.load(train)[3][4])
+            except (EOFError):
+                break
+    with open(valid_path) as valid:
+        for x in range(offset):
+            pickle.load(valid)
+        while True:
+            try:
+                valid_Y.append(pickle.load(valid)[3][4])
+            except (EOFError):
+                break
+    with open(test_path) as test:
+        for x in range(offset):
+            pickle.load(test)
+        while True:
+            try:
+                test_Y.append(pickle.load(test)[3][4])
+            except (EOFError):
+                break
+
+
 class KerasBatchGenerator(object):
 
     def __init__(self, data, num_steps, batch_size, file_size, skip_step=1):
@@ -183,7 +216,7 @@ if use_dropout:
 model.add(Activation('relu'))
 model.add(Dense(1))
 #model.add(Activation('sigmoid')) #maybe change activation function to help get one value? idk. this is why prediction is always 1 right now(old)
-model.compile(loss='mean_absolute_error', optimizer=tf.keras.optimizers.Adagrad(), metrics=['mean_absolute_percentage_error'])
+model.compile(loss='mean_absolute_error', optimizer=tf.keras.optimizers.Adagrad(lr=.03), metrics=['mean_absolute_percentage_error'])
 
 print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
@@ -191,11 +224,11 @@ num_epochs = 5
 #removed 8000// from batch_size*num_steps
 model.fit_generator(train_data_generator.generate(), train_size/batch_size, num_epochs, #8000 was len(train_Data), //(batch_size*num_steps)
                         validation_data=valid_data_generator.generate(),
-                        validation_steps=30, callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
+                        validation_steps=valid_size/batch_size, callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
 
 model = load_model(data_path + "/model-05.hdf5")
 dummy_iters = 40
-example_training_generator = KerasBatchGenerator(valid_data, num_steps, batch_size, valid_size,
+example_training_generator = KerasBatchGenerator(train_data, num_steps, batch_size, train_size,
                                                   skip_step=1)
 print("Training data:")
 for i in range(dummy_iters):
@@ -204,18 +237,14 @@ num_predict = 10
 
 for i in range(num_predict):
     data, y = next(example_training_generator.generate())
-    print(y.shape)
+    #print(y.shape)
     #print(data[i])
     test = np.reshape(data[i],(1,1,30))
-
-    if i == 2:
-        test = np.zeros((1,1,30))
-        print(test)
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
     # print(test)
     print("Actual: " + str(((y[i][0]*323.0)-273.15)*(9.0/5.0)+32.0)) #converts data to f
-    print("Prediction: " + str(((prediction*323.0)-273.15)*(9.0/5.0)+32.0)+ "\nShape: " + str(prediction.shape))
+    print("Prediction: " + str(((prediction*323.0)-273.15)*(9.0/5.0)+32.0))
     #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
 
 # test data set
@@ -229,16 +258,12 @@ num_predict = 10
 
 for i in range(num_predict):
     data, y = next(example_test_generator.generate())
-    print(y.shape)
+    #print(y.shape)
     # print(data[i])
     test = np.reshape(data[i], (1, 1, 30))
 
-    if i == 2:
-        test = np.zeros((1, 1, 30))
-        print(test)
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
     # print(test)
-    print(((y[i][0] * 323.0) - 273.15) * (9.0 / 5.0) + 32.0)  # converts data to f
-    print("Prediction: " + str(((prediction * 323.0) - 273.15) * (9.0 / 5.0) + 32.0) + "\nShape: " + str(
-        prediction.shape))
+    print("Actual: " + str(((y[i][0] * 323.0) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
+    print("Prediction: " + str(((prediction * 323.0) - 273.15) * (9.0 / 5.0) + 32.0))
