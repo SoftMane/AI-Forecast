@@ -12,6 +12,8 @@ class HistAccess():
 
     def getData(self, num_cities, city_names, start_year, end_year):
         count = 1
+        for x in range(city_names.len):
+            city_names[x] = city_names[x].strip()
         if(start_year > end_year): #ensures start year is the earliest year
             temp = end_year
             self.end_year = start_year
@@ -37,11 +39,11 @@ class HistAccess():
                 if wd.year >= start_year and wd.year <= end_year: #if year is within specified range
                     #F: -20 = 244K
                     #F: 120 = 322K
-                    wd.temp = data[count]['main']['temp'] / 323  # divide by 50 Celsius (323K)
-                    wd.temp_min = data[count]['main']['temp_min'] / 323
-                    wd.temp_max = data[count]['main']['temp_max'] / 323
-                    wd.pressure = data[count]['main']['pressure'] / 1100 #avg is about 1013, doesn't seem to vary much
-                    wd.humidity = data[count]['main']['humidity'] / 100
+                    wd.temp = (data[count]['main']['temp'] - 244) / (323 - 244)  # divide by 50 Celsius (323K)
+                    wd.temp_min = (data[count]['main']['temp_min'] - 244) / (323 - 244)
+                    wd.temp_max = (data[count]['main']['temp_max'] - 244) / (323 - 244)
+                    wd.pressure = (data[count]['main']['pressure'] - 900) / (1100-900) #avg is about 1013, doesn't seem to vary much
+                    wd.humidity = data[count]['main']['humidity'] - 50 / (100 - 50)
                     wd.wind_speed = data[count]['wind']['speed'] / 50 #~50 mph (knots)
                     wd.wind_dir = data[count]['wind']['deg'] / 360
                     for x in range(num_cities):
@@ -146,4 +148,4 @@ class HistAccess():
             f_test.close()
 
 test = HistAccess
-test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2017, 2019)
+test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2015, 2019)
