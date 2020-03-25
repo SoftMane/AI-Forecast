@@ -12,8 +12,6 @@ class HistAccess():
 
     def getData(self, num_cities, city_names, start_year, end_year):
         count = 1
-        for x in range(city_names.len):
-            city_names[x] = city_names[x].strip()
         if(start_year > end_year): #ensures start year is the earliest year
             temp = end_year
             self.end_year = start_year

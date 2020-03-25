@@ -11,7 +11,6 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 import numpy as np
 import pickle
 import decimal
-from sklearn.preprocessing import OneHotEncoder
 
 #tf.compat.v1.disable_eager_execution()
 data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess/'
@@ -198,7 +197,7 @@ class KerasBatchGenerator(object):
                 current_spot = 0
 
 num_steps = 30
-batch_size = 50
+batch_size = 240
 train_data_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
                                            skip_step=1)
 valid_data_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
@@ -209,19 +208,20 @@ hidden_size = 30
 use_dropout=True
 model = Sequential()
 #model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(hidden_size, input_shape=(1, 30), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
-              recurrent_initializer=keras.initializers.VarianceScaling()))
-model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
-              recurrent_initializer=keras.initializers.VarianceScaling()))
-model.add(TimeDistributed(Dense(150))) #150 for one hot way?
+model.add(LSTM(150, return_sequences=True, input_shape=(1,30), kernel_initializer=keras.initializers.VarianceScaling(),
+              recurrent_initializer=keras.initializers.VarianceScaling(),activation='relu'))
+model.add(Dropout(0.5))
+model.add(LSTM(150, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
+              recurrent_initializer=keras.initializers.VarianceScaling(), activation='relu'))
+model.add(TimeDistributed(Dense(150, activation='relu'))) #150 for one hot way?
 if use_dropout:
-    model.add(Dropout(0.35))
+    model.add(Dropout(0.5))
 #try one hot representation instead? use categorical crossentropy, #change y into array with possible temperatures with correct one as 1
 #model.add(Flatten())
-model.add(Activation('relu'))
-model.add(Dense(150))
+model.add(Dense(150,activation='softmax'))
 
-model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adagrad(lr=.05), metrics=['categorical_accuracy'])
+
+model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999), metrics=['categorical_accuracy'])
 
 print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
@@ -246,13 +246,13 @@ for i in range(num_predict):
     #print(data[i])
     test = np.reshape(data[i],(1,1,30))
     prediction = model.predict(test)
-    print(prediction.shape)
     # test = np.reshape(data[0][i+1], (1,1,33))
     # print(test)
 
     print("Actual: " + str(np.argmax(y[i][0])))
-
+    print(y[i][0])
     print("Prediction: " + str(np.argmax(prediction[0][0])))
+    print(prediction)
     # print("Actual: " + str(((y[i][0] * (323.0 - 244)+244) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
     # print("Prediction: " + str(maxTemp - 30))
     #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
