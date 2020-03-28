@@ -12,6 +12,7 @@ import numpy as np
 import pickle
 import decimal
 
+
 #tf.compat.v1.disable_eager_execution()
 data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess/'
 offset = 1
@@ -156,11 +157,11 @@ class KerasBatchGenerator(object):
         temp_y = []
         while True:
             with open(self.data, 'rb') as f:
-                x = np.zeros((self.batch_size, int(self.num_steps)), dtype=float)
-                y2 = np.zeros((self.batch_size, 150), dtype=float)
+                x = np.zeros((self.batch_size+(num_steps-1), 3), dtype=float)
+                y2 = np.zeros((self.batch_size), dtype=float)
                 for t in range(current_spot):
                     temp = pickle.load(f)
-                for i in range(self.batch_size):
+                for i in range(self.batch_size+(num_steps-1)):
                     if self.current_idx + self.num_steps >= len(self.data):
                         # reset the index back to the start of the data set
                         self.current_idx = 0
@@ -168,36 +169,43 @@ class KerasBatchGenerator(object):
                         temp_x = pickle.load(f)
                         temp_x = np.array(temp_x).astype('float64')
                         temp_x = np.delete(temp_x, 3, axis=0) #removes erie data row
-                        temp_x = temp_x.flatten(order='C')
-                        temp_x = np.array(temp_x)
-
-                        x[i] = temp_x #np.array(pickle.load(f)) #use temp object to hold this as np.array(pickle.load(f)) then assign to x[i]
+                        #temp_x = temp_x.flatten(order='C')
+                        #temp_x = np.array(temp_x)
+                        #need to make this flexible at some point
+                        x[i] = temp_x[0][4], temp_x[1][4], temp_x[2][4] #assign the temp values of the cities that are not erie
                     else:
-                        x[i] = temp_y
+                        x[i] = temp_y[0][4], temp_y[1][4], temp_y[2][4]
                         #print(x[i])
                     #x[i] = pickle.load(f)# self.data[self.current_idx:self.current_idx + self.num_steps]
                     temp_y = np.array(pickle.load(f), dtype=np.float)#self.data[self.current_idx + 1:self.current_idx + self.num_steps + 1]
-                    #convert y value to onehot array
-                    onehot = (((self.y[i] * (323.0 - 244) + 244) - 273.15) * (9.0 / 5.0) + 32.0) +30
-                    y2[i][int(onehot)] = 1
+                    if i < batch_size: #makes sure this doesn't go out of range
+                        y2[i] = self.y[i]
                     #y[i] = temp_y[3][4]
                     temp_y = np.delete(temp_y, 3, axis=0) #removes erie data row
-                    temp_y = temp_y.flatten(order='C') #flattens to 1,33
-                    temp_y = np.array(temp_y)
-                    # # convert all of temp_y into a one hot representation
+                    #temp_y = temp_y.flatten(order='C') #flattens to 1,33
+                    #temp_y = np.array(temp_y)
                     #y[i] = temp_y
                     #y[i, :, :] = to_categorical(temp_y, num_classes=self.vocabulary)
                     self.current_idx += self.skip_step
                     current_spot += 1
-                x = np.reshape(x, (batch_size,1, 30))
-                y2 = np.reshape(y2, (batch_size,1,150))
-                yield x, y2
+                # x = np.reshape(x, (batch_size,1, 30))
+                # y2 = np.reshape(y2, (batch_size,1))
+                #this section of code creates the array of 'windows' used as input, needs to be more flexible
+                x2 = np.zeros((batch_size,4,3))
+                for i in range(batch_size):
+                    temp = []
+                    temp.append(x[i])
+                    temp.append(x[i+1])
+                    temp.append(x[i + 2])
+                    temp.append(x[i + 3])
+                    x2[i]=temp
+                yield x2, y2
             f.close()
-            if current_spot > self.file_size-batch_size:
+            if current_spot > self.file_size-(batch_size+(num_steps-1)): #reset if not enough data left for a batch
                 current_spot = 0
 
-num_steps = 30
-batch_size = 240
+num_steps = 4
+batch_size = 48
 train_data_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
                                            skip_step=1)
 valid_data_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
@@ -208,28 +216,31 @@ hidden_size = 30
 use_dropout=True
 model = Sequential()
 #model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(150, return_sequences=True, input_shape=(1,30), kernel_initializer=keras.initializers.VarianceScaling(),
-              recurrent_initializer=keras.initializers.VarianceScaling(),activation='relu'))
-model.add(Dropout(0.25))
-model.add(LSTM(150, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
-              recurrent_initializer=keras.initializers.VarianceScaling(), activation='relu'))
-model.add(TimeDistributed(Dense(150, activation='relu'))) #150 for one hot way?
+model.add(LSTM(hidden_size, input_shape=(4, 3), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+              recurrent_initializer=keras.initializers.VarianceScaling()))
 if use_dropout:
     model.add(Dropout(0.35))
-#try one hot representation instead? use categorical crossentropy, #change y into array with possible temperatures with correct one as 1
+model.add(TimeDistributed(Dense(1)))  # 150 for one hot way?
+model.add(LSTM(hidden_size, return_sequences=False, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
+              recurrent_initializer=keras.initializers.VarianceScaling()))
+model.add(Activation('relu'))
+#model.add(TimeDistributed(Dense(1))) #150 for one hot way?
 model.add(Flatten())
-model.add(Dense(150,activation='softmax'))
+model.add(Dense(1))
+#try one hot representation instead? use categorical crossentropy, #change y into array with possible temperatures with correct one as 1
+#model.add(Flatten())
 
 
-model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999), metrics=['categorical_accuracy'])
 
-print(model.summary()) #last dim should be NONE,140
+model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.Adam(), metrics=['mean_absolute_percentage_error'])
+
+print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
 num_epochs = 15
 #removed 8000// from batch_size*num_steps
-model.fit_generator(train_data_generator.generate(), train_size/batch_size, num_epochs, #8000 was len(train_Data), //(batch_size*num_steps)
+model.fit_generator(train_data_generator.generate(), train_size/(batch_size-num_steps-1), num_epochs, #8000 was len(train_Data), //(batch_size*num_steps)
                         validation_data=valid_data_generator.generate(),
-                        validation_steps=valid_size/batch_size, callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
+                        validation_steps=valid_size/(batch_size-num_steps-1), callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
 
 model = load_model(data_path + "/model-15.hdf5")
 dummy_iters = 40
@@ -244,17 +255,13 @@ for i in range(num_predict):
     data, y = next(example_training_generator.generate())
     #print(y.shape)
     #print(data[i])
-    test = np.reshape(data[i],(1,1,30))
+    test = data[i]
+    test = np.reshape(test, (1,4,3))
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
     # print(test)
-
-    print("Actual: " + str(np.argmax(y[i][0])))
-    print(y[i][0])
-    print("Prediction: " + str(np.argmax(prediction[0][0])))
-    print(prediction)
-    # print("Actual: " + str(((y[i][0] * (323.0 - 244)+244) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
-    # print("Prediction: " + str(maxTemp - 30))
+    print("Actual: " + str(((y[i] * (323.0 - 244)+244) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
+    print("Prediction: " + str(((prediction * (323.0 - 244)+244) - 273.15) * (9.0 / 5.0) + 32.0))
     #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
 
 # test data set
@@ -270,10 +277,10 @@ for i in range(num_predict):
     data, y = next(example_test_generator.generate())
     #print(y.shape)
     # print(data[i])
-    test = np.reshape(data[i], (1, 1, 30))
-
+    test = data[i]
+    test = np.reshape(test, (1, 4, 3))
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
 
-    # print("Actual: " + str(((y[i][0] * (323.0 - 244) + 244) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
-    # print("Prediction: " + str(((prediction * (323.0 - 244) + 244) - 273.15) * (9.0 / 5.0) + 32.0))
+    print("Actual: " + str(((y[i]* (323.0 - 244) + 244) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
+    print("Prediction: " + str(((prediction * (323.0 - 244) + 244) - 273.15) * (9.0 / 5.0) + 32.0))
