@@ -14,7 +14,7 @@ import decimal
 
 
 #tf.compat.v1.disable_eager_execution()
-data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess/'
+data_path = '/Users/tigergoodbread/PycharmProjects/AI-Forecast/DataAccess/'
 offset = 1
 # def read_words(filename):
 #     with tf.io.gfile.GFile(filename, "rb") as f:
@@ -191,20 +191,21 @@ class KerasBatchGenerator(object):
                 # x = np.reshape(x, (batch_size,1, 30))
                 # y2 = np.reshape(y2, (batch_size,1))
                 #this section of code creates the array of 'windows' used as input, needs to be more flexible
-                x2 = np.zeros((batch_size,4,3))
+                x2 = np.zeros((batch_size, 24, 3))
                 for i in range(batch_size):
                     temp = []
-                    temp.append(x[i])
-                    temp.append(x[i+1])
-                    temp.append(x[i + 2])
-                    temp.append(x[i + 3])
-                    x2[i]=temp
+                    for s in range(24):
+                        temp.append(x[i + s])
+                    # temp.append(x[i+1])
+                    # temp.append(x[i + 2])
+                    # temp.append(x[i + 3])
+                    x2[i] = temp
                 yield x2, y2
             f.close()
             if current_spot > self.file_size-(batch_size+(num_steps-1)): #reset if not enough data left for a batch
                 current_spot = 0
 
-num_steps = 4
+num_steps = 24
 batch_size = 48
 train_data_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
                                            skip_step=1)
@@ -216,12 +217,12 @@ hidden_size = 30
 use_dropout=True
 model = Sequential()
 #model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(hidden_size, input_shape=(4, 3), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+model.add(LSTM(hidden_size, input_shape=(24, 3), return_sequences=True, kernel_initializer=keras.initializers.RandomNormal(),
               recurrent_initializer=keras.initializers.VarianceScaling()))
 if use_dropout:
     model.add(Dropout(0.35))
 model.add(TimeDistributed(Dense(1)))  # 150 for one hot way?
-model.add(LSTM(hidden_size, return_sequences=False, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
+model.add(LSTM(hidden_size, return_sequences=False, kernel_initializer=keras.initializers.RandomNormal(), #'orthogonal'
               recurrent_initializer=keras.initializers.VarianceScaling()))
 model.add(Activation('relu'))
 #model.add(TimeDistributed(Dense(1))) #150 for one hot way?
@@ -256,7 +257,7 @@ for i in range(num_predict):
     #print(y.shape)
     #print(data[i])
     test = data[i]
-    test = np.reshape(test, (1,4,3))
+    test = np.reshape(test, (1, 24, 3))
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
     # print(test)
@@ -278,7 +279,7 @@ for i in range(num_predict):
     #print(y.shape)
     # print(data[i])
     test = data[i]
-    test = np.reshape(test, (1, 4, 3))
+    test = np.reshape(test, (1, 24, 3))
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
 

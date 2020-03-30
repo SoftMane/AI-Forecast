@@ -12,6 +12,7 @@ class HistAccess():
 
     def getData(self, num_cities, city_names, start_year, end_year):
         count = 1
+
         if(start_year > end_year): #ensures start year is the earliest year
             temp = end_year
             self.end_year = start_year
@@ -21,7 +22,7 @@ class HistAccess():
         for x in range(num_cities):
             temp_array = []
             city_array.append(temp_array)
-        with open('C:/Users/Rohg/PycharmProjects/AI-Forecast/Data.json') as f:
+        with open('/Users/tigergoodbread/PycharmProjects/AI-Forecast/Data.json') as f:
             # this next line loads the entire file into data as an array of json objects. can access individual things like 2d array
             # and has 666604 json objects
             data = json.load(f)
