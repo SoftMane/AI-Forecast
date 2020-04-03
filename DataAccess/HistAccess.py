@@ -31,9 +31,9 @@ class HistAccess():
                 temp_date = data[count]['dt']
                 temp_date = datetime.fromtimestamp(temp_date)
                 wd.year = temp_date.year
-                wd.month = temp_date.month
-                wd.day = temp_date.day
-                wd.hour = temp_date.hour
+                wd.month = temp_date.month / 12.0
+                wd.day = temp_date.day/31.0
+                wd.hour = temp_date.hour/24.0
                 if wd.year >= start_year and wd.year <= end_year: #if year is within specified range
                     #F: -20 = 244K
                     #F: 120 = 322K
@@ -146,4 +146,4 @@ class HistAccess():
             f_test.close()
 
 test = HistAccess
-test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2015, 2019)
+test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2010, 2019)

@@ -15,7 +15,7 @@ import decimal
 
 #tf.compat.v1.disable_eager_execution()
 data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess/'
-offset = 1
+offset = 4
 # def read_words(filename):
 #     with tf.io.gfile.GFile(filename, "rb") as f:
 #         return f.read().decode("utf-8").replace("\n", "<eos>").split()
@@ -158,7 +158,7 @@ class KerasBatchGenerator(object):
         while True:
             with open(self.data, 'rb') as f:
                 x = np.zeros((self.batch_size+(num_steps-1), 3), dtype=float)
-                y2 = np.zeros((self.batch_size), dtype=float)
+                y2 = np.zeros((self.batch_size, num_steps), dtype=float)
                 for t in range(current_spot):
                     temp = pickle.load(f)
                 for i in range(self.batch_size+(num_steps-1)):
@@ -179,7 +179,8 @@ class KerasBatchGenerator(object):
                     #x[i] = pickle.load(f)# self.data[self.current_idx:self.current_idx + self.num_steps]
                     temp_y = np.array(pickle.load(f), dtype=np.float)#self.data[self.current_idx + 1:self.current_idx + self.num_steps + 1]
                     if i < batch_size: #makes sure this doesn't go out of range
-                        y2[i] = self.y[i]
+                        for t in range(num_steps):
+                            y2[i][t] = self.y[i + t]
                     #y[i] = temp_y[3][4]
                     temp_y = np.delete(temp_y, 3, axis=0) #removes erie data row
                     #temp_y = temp_y.flatten(order='C') #flattens to 1,33
@@ -191,21 +192,19 @@ class KerasBatchGenerator(object):
                 # x = np.reshape(x, (batch_size,1, 30))
                 # y2 = np.reshape(y2, (batch_size,1))
                 #this section of code creates the array of 'windows' used as input, needs to be more flexible
-                x2 = np.zeros((batch_size,4,3))
+                x2 = np.zeros((batch_size,num_steps,3))
                 for i in range(batch_size):
                     temp = []
-                    temp.append(x[i])
-                    temp.append(x[i+1])
-                    temp.append(x[i + 2])
-                    temp.append(x[i + 3])
+                    for z in range(num_steps):
+                        temp.append(x[i+z])
                     x2[i]=temp
-                yield x2, y2
+                yield x2, y2 #Y NEEDS TO BE 48,4,1 (3 previous then temp trying to predict) But this doesn't make much sense..
             f.close()
             if current_spot > self.file_size-(batch_size+(num_steps-1)): #reset if not enough data left for a batch
                 current_spot = 0
 
 num_steps = 4
-batch_size = 48
+batch_size = 168
 train_data_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
                                            skip_step=1)
 valid_data_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
@@ -216,35 +215,36 @@ hidden_size = 30
 use_dropout=True
 model = Sequential()
 #model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(hidden_size, input_shape=(4, 3), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+model.add(LSTM(hidden_size, input_shape=(num_steps, 3), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+              recurrent_initializer=keras.initializers.VarianceScaling()))
+model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
               recurrent_initializer=keras.initializers.VarianceScaling()))
 if use_dropout:
     model.add(Dropout(0.35))
+    model.add(Activation('relu'))
 model.add(TimeDistributed(Dense(1)))  # 150 for one hot way?
-model.add(LSTM(hidden_size, return_sequences=False, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
-              recurrent_initializer=keras.initializers.VarianceScaling()))
-model.add(Activation('relu'))
+
 #model.add(TimeDistributed(Dense(1))) #150 for one hot way?
-model.add(Flatten())
-model.add(Dense(1))
+#model.add(Flatten())
+#model.add(Dense(1))
 #try one hot representation instead? use categorical crossentropy, #change y into array with possible temperatures with correct one as 1
 #model.add(Flatten())
 
 
 
-model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.Adam(), metrics=['mean_absolute_percentage_error'])
+model.compile(loss='mean_absolute_percentage_error', optimizer=tf.keras.optimizers.Adam(lr=.005), metrics=['mean_absolute_percentage_error'])
 
 print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
-num_epochs = 15
+num_epochs = 50
 #removed 8000// from batch_size*num_steps
-model.fit_generator(train_data_generator.generate(), train_size/(batch_size-num_steps-1), num_epochs, #8000 was len(train_Data), //(batch_size*num_steps)
+model.fit_generator(train_data_generator.generate(), train_size/(batch_size-2), num_epochs, #8000 was len(train_Data), //(batch_size*num_steps)
                         validation_data=valid_data_generator.generate(),
-                        validation_steps=valid_size/(batch_size-num_steps-1), callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
+                        validation_steps=valid_size/(batch_size-2), callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
 
-model = load_model(data_path + "/model-15.hdf5")
+model = load_model(data_path + "/model-50.hdf5")
 dummy_iters = 40
-example_training_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
+example_training_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
                                                   skip_step=1)
 print("Training data:")
 for i in range(dummy_iters):
