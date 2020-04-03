@@ -14,7 +14,7 @@ import decimal
 
 
 #tf.compat.v1.disable_eager_execution()
-data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess/'
+data_path = '/Users/tigergoodbread/PycharmProjects/AI-Forecast/DataAccess/'
 offset = 1
 # def read_words(filename):
 #     with tf.io.gfile.GFile(filename, "rb") as f:
@@ -188,8 +188,8 @@ class KerasBatchGenerator(object):
                     #y[i, :, :] = to_categorical(temp_y, num_classes=self.vocabulary)
                     self.current_idx += self.skip_step
                     current_spot += 1
-                x = np.reshape(x, (batch_size,1, 30))
-                y2 = np.reshape(y2, (batch_size,1))
+                x = np.reshape(x, (batch_size, 4, 3))
+                y2 = np.reshape(y2, (batch_size, 1))
                 yield x, y2
             f.close()
             if current_spot > self.file_size-batch_size:
@@ -207,11 +207,11 @@ hidden_size = 30
 use_dropout=True
 model = Sequential()
 #model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(hidden_size, input_shape=(1, 30), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+model.add(LSTM(hidden_size, input_shape=(4, 3), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
               recurrent_initializer=keras.initializers.VarianceScaling()))
 model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
               recurrent_initializer=keras.initializers.VarianceScaling()))
-model.add(TimeDistributed(Dense(30))) #150 for one hot way?
+model.add(TimeDistributed(Dense(1))) #150 for one hot way?
 if use_dropout:
     model.add(Dropout(0.35))
 #try one hot representation instead? use categorical crossentropy, #change y into array with possible temperatures with correct one as 1
@@ -219,7 +219,7 @@ if use_dropout:
 model.add(Activation('relu'))
 model.add(Dense(1))
 
-model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.Adagrad(lr=.05), metrics=['mean_absolute_percentage_error'])
+model.compile(loss='sparse_categorical_crossentropy', optimizer=tf.keras.optimizers.Adagrad(lr=.05), metrics=['mean_absolute_percentage_error'])
 
 print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
