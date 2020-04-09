@@ -48,21 +48,7 @@ class HistAccess():
                     for x in range(num_cities):
                         if data[count]['city_name'] == city_names[x]:
                             city_array[x].append(wd)
-                            # count_city1 += 1
-                    # elif(data[count]['city_name'] == 'Cleveland'):
-                    #     city2.append(wd)
-                    #     count_city2 += 1
-                    # elif(data[count]['city_name'] == 'Pittsburgh'):
-                    #     city3.append(wd)
-                    #     count_city3 += 1
-                    # elif (data[count]['city_name'] == 'Erie'):
-                    #     city4.append(wd)
-                    #     count_city4 += 1
                 count += 1
-            # formatted_data.append(city1)
-            # formatted_data.append(city2)
-            # formatted_data.append(city3)
-            # formatted_data.append(city4)
             print(len(city_array[0]), " ", len(city_array[1]), " ", len(city_array[2]), " ", len(city_array[3]))
 
 
@@ -76,17 +62,6 @@ class HistAccess():
                     x = x + 1
                     for j in range(4):
                         temp = []
-                        # f.write(str(city_array[j][i].year) + " ")
-                        # f.write(str(city_array[j][i].month) + " ")
-                        # f.write(str(city_array[j][i].day) + " ")
-                        # f.write(str(city_array[j][i].hour) + " ")
-                        # f.write(str(city_array[j][i].temp) + " ")
-                        # f.write(str(city_array[j][i].temp_min) + " ")
-                        # f.write(str(city_array[j][i].temp_max) + " ")
-                        # f.write(str(city_array[j][i].pressure) + " ")
-                        # f.write(str(city_array[j][i].humidity) + " ")
-                        # f.write(str(city_array[j][i].wind_speed) + " ")
-                        # f.write(str(city_array[j][i].wind_dir) + '\n')
 
                         #temp.append(city_array[j][i].year)
                         temp.append(city_array[j][i].month)

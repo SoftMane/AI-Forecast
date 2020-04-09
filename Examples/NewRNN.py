@@ -146,20 +146,21 @@ class KerasBatchGenerator(object):
         # data set - once the data reaches the end of the data set it will reset
         # back to zero
         self.current_idx = 0
+        self.current_spot = 0
         # skip_step is the number of words which will be skipped before the next
         # batch is skimmed from the data set
         self.skip_step = skip_step
         #self.file_length = file_length
 # add in counter and open file then close after reading in correct amount.
 # Check if way to load certain index with pickle stuff
+
     def generate(self):
-        current_spot = 0
         temp_y = []
         while True:
             with open(self.data, 'rb') as f:
                 x = np.zeros((self.batch_size+(num_steps-1), 3), dtype=float)
-                y2 = np.zeros((self.batch_size, num_steps), dtype=float)
-                for t in range(current_spot):
+                y2 = np.zeros((self.batch_size, num_steps,1), dtype=float)
+                for t in range(self.current_spot):
                     temp = pickle.load(f)
                 for i in range(self.batch_size+(num_steps-1)):
                     if self.current_idx + self.num_steps >= len(self.data):
@@ -180,7 +181,7 @@ class KerasBatchGenerator(object):
                     temp_y = np.array(pickle.load(f), dtype=np.float)#self.data[self.current_idx + 1:self.current_idx + self.num_steps + 1]
                     if i < batch_size: #makes sure this doesn't go out of range
                         for t in range(num_steps):
-                            y2[i][t] = self.y[i + t]
+                            y2[i][t][0] = self.y[i+self.current_spot + t]
                     #y[i] = temp_y[3][4]
                     temp_y = np.delete(temp_y, 3, axis=0) #removes erie data row
                     #temp_y = temp_y.flatten(order='C') #flattens to 1,33
@@ -188,7 +189,7 @@ class KerasBatchGenerator(object):
                     #y[i] = temp_y
                     #y[i, :, :] = to_categorical(temp_y, num_classes=self.vocabulary)
                     self.current_idx += self.skip_step
-                    current_spot += 1
+                    self.current_spot += 1
                 # x = np.reshape(x, (batch_size,1, 30))
                 # y2 = np.reshape(y2, (batch_size,1))
                 #this section of code creates the array of 'windows' used as input, needs to be more flexible
@@ -200,25 +201,26 @@ class KerasBatchGenerator(object):
                     x2[i]=temp
                 yield x2, y2 #Y NEEDS TO BE 48,4,1 (3 previous then temp trying to predict) But this doesn't make much sense..
             f.close()
-            if current_spot > self.file_size-(batch_size+(num_steps-1)): #reset if not enough data left for a batch
-                current_spot = 0
+            if self.current_spot > (self.file_size-2*(batch_size+(num_steps-1))): #reset if not enough data left for a batch
+                self.current_spot = 0
 
 num_steps = 4
-batch_size = 168
+batch_size = 96
 train_data_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
                                            skip_step=1)
 valid_data_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
                                            skip_step=1)
 
 embedding_size = 500
-hidden_size = 30
+hidden_size = 120
 use_dropout=True
 model = Sequential()
 #model.add(Embedding(8000, embedding_size, input_length=num_steps))
 model.add(LSTM(hidden_size, input_shape=(num_steps, 3), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
               recurrent_initializer=keras.initializers.VarianceScaling()))
+model.add(Dropout(.3))
 model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
-              recurrent_initializer=keras.initializers.VarianceScaling()))
+              recurrent_initializer=keras.initializers.VarianceScaling(),activation='relu'))
 if use_dropout:
     model.add(Dropout(0.35))
     model.add(Activation('relu'))
@@ -232,17 +234,17 @@ model.add(TimeDistributed(Dense(1)))  # 150 for one hot way?
 
 
 
-model.compile(loss='mean_absolute_percentage_error', optimizer=tf.keras.optimizers.Adam(lr=.005), metrics=['mean_absolute_percentage_error'])
+model.compile(loss='mean_absolute_percentage_error', optimizer=tf.keras.optimizers.Adagrad(lr=.005), metrics=['mean_absolute_percentage_error'])
 
 print(model.summary())
 checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
-num_epochs = 50
+num_epochs = 10
 #removed 8000// from batch_size*num_steps
 model.fit_generator(train_data_generator.generate(), train_size/(batch_size-2), num_epochs, #8000 was len(train_Data), //(batch_size*num_steps)
                         validation_data=valid_data_generator.generate(),
                         validation_steps=valid_size/(batch_size-2), callbacks=[checkpointer]) #8000 was len(valid_data), //(batch_size*num_steps) m
 
-model = load_model(data_path + "/model-50.hdf5")
+model = load_model(data_path + "/model-10.hdf5")
 dummy_iters = 40
 example_training_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
                                                   skip_step=1)
@@ -260,8 +262,8 @@ for i in range(num_predict):
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
     # print(test)
-    print("Actual: " + str(((y[i] * (323.0 - 244)+244) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
-    print("Prediction: " + str(((prediction * (323.0 - 244)+244) - 273.15) * (9.0 / 5.0) + 32.0))
+    print("Actual: " + str(((y[i] * (323.0 - 244.0)+244.0) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
+    print("Prediction: " + str(((prediction * (323.0 - 244.0)+244.0) - 273.15) * (9.0 / 5.0) + 32.0))
     #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
 
 # test data set
@@ -282,5 +284,5 @@ for i in range(num_predict):
     prediction = model.predict(test)
     # test = np.reshape(data[0][i+1], (1,1,33))
 
-    print("Actual: " + str(((y[i]* (323.0 - 244) + 244) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
-    print("Prediction: " + str(((prediction * (323.0 - 244) + 244) - 273.15) * (9.0 / 5.0) + 32.0))
+    print("Actual: " + str(((y[i]* (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
+    print("Prediction: " + str(((prediction * (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))
