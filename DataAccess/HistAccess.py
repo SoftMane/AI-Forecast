@@ -121,5 +121,5 @@ class HistAccess():
                     pickle.dump(out_array, f_test, pickle.HIGHEST_PROTOCOL)
             f_test.close()
 
-test = HistAccess
-test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2010, 2019)
+# test = HistAccess
+# test.getData(test, 4, ['Buffalo', 'Cleveland', 'Pittsburgh', 'Erie'], 2010, 2019)

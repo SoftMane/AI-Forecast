@@ -14,7 +14,7 @@ import decimal
 
 
 #tf.compat.v1.disable_eager_execution()
-data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess/'
+data_path = '/Users/tigergoodbread/PycharmProjects/AI-Forecast/DataAccess/'
 offset = 8
 # def read_words(filename):
 #     with tf.io.gfile.GFile(filename, "rb") as f:
