@@ -15,7 +15,7 @@ import decimal
 
 #tf.compat.v1.disable_eager_execution()
 data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast/DataAccess/'
-offset = 4
+offset = 8
 # def read_words(filename):
 #     with tf.io.gfile.GFile(filename, "rb") as f:
 #         return f.read().decode("utf-8").replace("\n", "<eos>").split()
@@ -58,9 +58,10 @@ def load_data(data_path):
     # print(" ".join([reversed_dictionary[x] for x in train_data[:10]]))
     return data_path+train_path, data_path+valid_path, data_path+test_path
 
-train_data, valid_data, test_data = load_data(data_path)
+
 
 def countingPklSize(data_path):
+   train_data, valid_data, test_data = load_data(data_path)
    train_path = train_data
    valid_path = valid_data
    test_path = test_data
@@ -97,7 +98,6 @@ def countingPklSize(data_path):
    f3.close()
    return trainSize, validSize, testSize
 
-train_size, valid_size, test_size = countingPklSize(data_path)
 
 #For getting needed y (temperature) values for greater offsets, saw 48 hours instead of 1
 #Could probably be combined with above counting function to be more efficient
@@ -131,7 +131,7 @@ def getYData(train_path,valid_path,test_path,offset):
             except (EOFError):
                 break
     return train_Y, valid_Y, test_Y
-train_Y, valid_Y, test_Y = getYData(train_data, valid_data, test_data, offset)
+
 
 class KerasBatchGenerator(object):
 
@@ -208,86 +208,93 @@ class KerasBatchGenerator(object):
             f.close()
             if self.current_spot > (self.file_size-2*(batch_size+(num_steps-1))): #reset if not enough data left for a batch
                 self.current_spot = 0
-
 num_steps = 1
 batch_size = 96
-train_data_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
-                                           skip_step=1)
-valid_data_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
-                                           skip_step=1)
+class RNN():
 
-embedding_size = 500
-hidden_size = 120
-use_dropout=True
-model = Sequential()
-#model.add(Embedding(8000, embedding_size, input_length=num_steps))
-model.add(LSTM(hidden_size, input_shape=(num_steps, 12), return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
-              recurrent_initializer=keras.initializers.VarianceScaling()))
-model.add(Dropout(.3))
-model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(), #'orthogonal'
-              recurrent_initializer=keras.initializers.VarianceScaling(),activation='relu'))
-if use_dropout:
-    model.add(Dropout(0.35))
-    model.add(Activation('relu'))
-model.add(TimeDistributed(Dense(1)))  # 150 for one hot way?
+    def runRNN(self):
+        train_data, valid_data, test_data = load_data(data_path)
 
-#model.add(TimeDistributed(Dense(1))) #150 for one hot way?
-#model.add(Flatten())
-#model.add(Dense(1))
-#try one hot representation instead? use categorical crossentropy, #change y into array with possible temperatures with correct one as 1
-#model.add(Flatten())
+        train_size, valid_size, test_size = countingPklSize(data_path)
 
+        train_Y, valid_Y, test_Y = getYData(train_data, valid_data, test_data, offset)
 
+        train_data_generator = KerasBatchGenerator(train_data, train_Y, num_steps, batch_size, train_size,
+                                                   skip_step=1)
+        valid_data_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
+                                                   skip_step=1)
+        hidden_size = 120
+        use_dropout = True
+        model = Sequential()
+        # model.add(Embedding(8000, embedding_size, input_length=num_steps))
+        model.add(LSTM(hidden_size, input_shape=(num_steps, 12), return_sequences=True,
+                       kernel_initializer=keras.initializers.VarianceScaling(),
+                       recurrent_initializer=keras.initializers.VarianceScaling()))
+        model.add(Dropout(.3))
+        model.add(LSTM(hidden_size, return_sequences=True, kernel_initializer=keras.initializers.VarianceScaling(),
+                       # 'orthogonal'
+                       recurrent_initializer=keras.initializers.VarianceScaling(), activation='relu'))
+        if use_dropout:
+            model.add(Dropout(0.35))
+            model.add(Activation('relu'))
+        model.add(TimeDistributed(Dense(1)))  # 150 for one hot way?
 
-model.compile(loss='mean_absolute_percentage_error', optimizer=tf.keras.optimizers.Adagrad(lr=.01), metrics=['mean_absolute_percentage_error'])
+        # model.add(TimeDistributed(Dense(1))) #150 for one hot way?
+        # model.add(Flatten())
+        # model.add(Dense(1))
+        # try one hot representation instead? use categorical crossentropy, #change y into array with possible temperatures with correct one as 1
+        # model.add(Flatten())
 
-print(model.summary())
-checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
-num_epochs = 25
-#removed 8000// from batch_size*num_steps
-model.fit_generator(train_data_generator.generate(), train_size/(batch_size-2), num_epochs,
-                        validation_data=valid_data_generator.generate(),
-                        validation_steps=valid_size/(batch_size-2), callbacks=[checkpointer])
+        model.compile(loss='mean_absolute_percentage_error', optimizer=tf.keras.optimizers.Adagrad(lr=.01),
+                      metrics=['mean_absolute_percentage_error'])
 
-model = load_model(data_path + "/model-25.hdf5")
-dummy_iters = 40
-example_training_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
-                                                  skip_step=1)
-print("Training data:")
-for i in range(dummy_iters):
-    dummy = next(example_training_generator.generate())
-num_predict = 10
+        print(model.summary())
+        checkpointer = ModelCheckpoint(filepath=data_path + '/model-{epoch:02d}.hdf5', verbose=1)
+        num_epochs = 25
+        # removed 8000// from batch_size*num_steps
+        model.fit_generator(train_data_generator.generate(), train_size / (batch_size - 2), num_epochs,
+                            validation_data=valid_data_generator.generate(),
+                            validation_steps=valid_size / (batch_size - 2), callbacks=[checkpointer])
 
-for i in range(num_predict):
-    data, y = next(example_training_generator.generate())
-    #print(y.shape)
-    #print(data[i])
-    test = data[i]
-    test = np.reshape(test, (1,num_steps,12))
-    prediction = model.predict(test)
-    # test = np.reshape(data[0][i+1], (1,1,33))
-    # print(test)
-    print("Actual: " + str(((y[i] * (323.0 - 244.0)+244.0) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
-    print("Prediction: " + str(((prediction * (323.0 - 244.0)+244.0) - 273.15) * (9.0 / 5.0) + 32.0))
-    #predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
+        model = load_model(data_path + "/model-25.hdf5")
+        dummy_iters = 40
+        example_training_generator = KerasBatchGenerator(valid_data, valid_Y, num_steps, batch_size, valid_size,
+                                                         skip_step=1)
+        print("Training data:")
+        for i in range(dummy_iters):
+            dummy = next(example_training_generator.generate())
+        num_predict = 10
 
-# test data set
-dummy_iters = 40
-example_test_generator = KerasBatchGenerator(test_data, test_Y, num_steps, batch_size, test_size,
-                                                 skip_step=1)
-print("Test data:")
-for i in range(dummy_iters):
-    dummy = next(example_test_generator.generate())
-num_predict = 10
+        for i in range(num_predict):
+            data, y = next(example_training_generator.generate())
+            # print(y.shape)
+            # print(data[i])
+            test = data[i]
+            test = np.reshape(test, (1, num_steps, 12))
+            prediction = model.predict(test)
+            # test = np.reshape(data[0][i+1], (1,1,33))
+            # print(test)
+            print("Actual: " + str(((y[i] * (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
+            print("Prediction: " + str(((prediction * (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))
+            # predict_word = np.argmax(prediction[:, 24-1, :]) #24 was num_steps
 
-for i in range(num_predict):
-    data, y = next(example_test_generator.generate())
-    #print(y.shape)
-    # print(data[i])
-    test = data[i]
-    test = np.reshape(test, (1, num_steps, 12))
-    prediction = model.predict(test)
-    # test = np.reshape(data[0][i+1], (1,1,33))
+        # test data set
+        dummy_iters = 40
+        example_test_generator = KerasBatchGenerator(test_data, test_Y, num_steps, batch_size, test_size,
+                                                     skip_step=1)
+        print("Test data:")
+        for i in range(dummy_iters):
+            dummy = next(example_test_generator.generate())
+        num_predict = 10
 
-    print("Actual: " + str(((y[i]* (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
-    print("Prediction: " + str(((prediction * (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))
+        for i in range(num_predict):
+            data, y = next(example_test_generator.generate())
+            # print(y.shape)
+            # print(data[i])
+            test = data[i]
+            test = np.reshape(test, (1, num_steps, 12))
+            prediction = model.predict(test)
+            # test = np.reshape(data[0][i+1], (1,1,33))
+
+            print("Actual: " + str(((y[i] * (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))  # converts data to f
+            print("Prediction: " + str(((prediction * (323.0 - 244.0) + 244.0) - 273.15) * (9.0 / 5.0) + 32.0))

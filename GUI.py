@@ -1,6 +1,7 @@
 from tkinter import *
 from DataAccess import APIAccess
 from tkinter.ttk import Separator
+from Examples import RNN
 
 HEIGHT = 600
 WIDTH = 1000
@@ -101,6 +102,9 @@ class Window(Frame):
 
         def run_train(self):
             output_label.config(text="Training...")
+            test = RNN.RNN
+            test.runRNN(test)
+
 
     # load items for Testing page
     def init_Test(self):
