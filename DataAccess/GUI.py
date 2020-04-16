@@ -90,16 +90,16 @@ class Window(Frame):
        trainNav.place(relx=.2, rely=0, relwidth=.1, relheight=1)
 
        ##########################                      add                    ##############################
-       exitNav = Button(nav, text="Exit", borderwidth=5, bg='#525453', fg='#d4d5d6', command=self.client_exit)
-       exitNav.place(relx=.8, rely=0, relwidth=.1, relheight=1)
-       userInputNav = Button(nav, text="Create Data", borderwidth=5, bg='#525453', fg='#d4d5d6',command=self.user_input)
-       userInputNav.place(relx=.3, rely=0, relwidth=.1, relheight=1)
+       # exitNav = Button(nav, text="Exit", borderwidth=5, bg='#525453', fg='#d4d5d6', command=self.client_exit)
+       # exitNav.place(relx=.8, rely=0, relwidth=.1, relheight=1)
+       # userInputNav = Button(nav, text="Create Data", borderwidth=5, bg='#525453', fg='#d4d5d6',command=self.user_input)
+       # userInputNav.place(relx=.3, rely=0, relwidth=.1, relheight=1)
        CityOptionNav = Button(nav, text="CityOptions", borderwidth=5, bg='#525453', fg='#d4d5d6', command=self.expand_Options)
        CityOptionNav.place(relx=.4, rely=0, relwidth=.1, relheight=1)
 
        #############################################            Test            #######################################
-       TTNav = Button(nav, text="test_test", borderwidth=5, bg='#525453', fg='#d4d5d6', command=self.test_test)
-       TTNav.place(relx=.7, rely=0, relwidth=.1, relheight=1)
+       # TTNav = Button(nav, text="test_test", borderwidth=5, bg='#525453', fg='#d4d5d6', command=self.test_test)
+       # TTNav.place(relx=.7, rely=0, relwidth=.1, relheight=1)
 
    # load items for Training page
    def init_Train(self):
@@ -194,9 +194,9 @@ class Window(Frame):
 
            variable1.set("not selected")  # default value
            variable2.set("not selected")  # default value
-           start_year = OptionMenu(root, variable1, "2000", "2001", "2002", "2003", "2004", "2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","20019")
+           start_year = OptionMenu(root, variable1, "2001", "2002", "2003", "2004", "2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019")
            start_year.place(relx=.05, rely=.35)
-           end_year = OptionMenu(root, variable2, "2000", "2001", "2002", "2003", "2004", "2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","20019")
+           end_year = OptionMenu(root, variable2, "2001", "2002", "2003", "2004", "2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019")
            end_year.place(relx=.15, rely=.35)
 
            global start_year_parameter
