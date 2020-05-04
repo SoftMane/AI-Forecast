@@ -16,7 +16,7 @@ from tkinter.filedialog import askdirectory
 
 
 #tf.compat.v1.disable_eager_execution()
-data_path = 'C:/Users/Rohg/PycharmProjects/AI-Forecast'
+data_path = '/'
 offset = 8
 
 def load_data(data_path):

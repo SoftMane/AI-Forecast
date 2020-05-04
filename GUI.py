@@ -10,9 +10,8 @@ from DataAccess import APIAccess
 ########    add   #################
 from DataAccess import HistAccess
 from DataAccess.HistAccess import HistAccess
-from DataAccess.load_data import load_data_class
 
-from Examples import RNN
+from RNN import RNN
 
 ########################################################################################
 # memo:
